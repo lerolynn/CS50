@@ -1,0 +1,143 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Homepage
+{% endblock %}
+
+{% block main %}
+    <main class="cash">
+
+        <div class="container">
+          <div class="row justify-content-between">
+            <div class="col-sm-6">
+                <div class="row">
+                    <h1 class="display-4">Map</h1>
+                </div>
+                <div class="row">
+                    <img src="static/willowgarage.jpg" alt="Willow Garage">
+                </div>
+            </div>
+
+            <div class="col-md-auto">
+                <h1 class="display-4">Robot List</h1>
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th scope="col">ID</th>
+                      <th scope="col">Robot</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">IP Address</th>
+                      <th scope="col"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                   {% for robot in robots %}
+                      <tr>
+                          <td>{{ robot.id }}</td>
+                          <td>{{ robot.robot_name }}</td>
+                          <td>{{ robot.robot_type }}</td>
+                          <td>{{ robot.ip_address }}</td>
+                          <td>
+                            <div class="dropdown">
+                              <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Select
+                              </button>
+                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                <a class="dropdown-item" data-toggle="modal" data-target="#updateRobotDetails" href="#">Update</a>
+                                <a class="dropdown-item" data-toggle="modal" data-target="#deleteRobot" href="#">Delete</a>
+                              </div>
+                            </div>
+                          </td>
+                          <!-- Modal for Update-->
+                          <div class="modal fade bd-example-modal-lg" id="updateRobotDetails" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                              <div class="modal-content">
+                                <div class="modal-header">
+                                  <h5 class="modal-title" id="exampleModalLongTitle">Update Robot - {{ robot.robot_name }} - Details</h5>
+                                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                  </button>
+                                </div>
+                                <div class="modal-body">
+                                  <form>
+                                    <div class="container-fluid">
+                                      <div class="row justify-content-around">
+                                        <div class="col-4">
+                                          <input type="text" class="form-control" placeholder="Robot Name" value="{{ robot.robot_name }}">
+                                        </div>
+                                        <div class="col-4">
+                                          <input type="text" class="form-control" placeholder="Robot Type" value="{{ robot.robot_type }}">
+                                        </div>
+                                        <div class="col-4">
+                                          <input type="text" class="form-control" placeholder="IP Address" value="{{ robot.ip_address }}">
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </form>
+                                </div>
+                                <div class="modal-footer">
+                                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                  <button type="button" class="btn btn-primary">Save changes</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Modal for Delete-->
+                          <div class="modal fade bd-example-modal-lg" id="deleteRobot" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                              <div class="modal-content">
+                                <div class="modal-header">
+                                  <h5 class="modal-title" id="exampleModalLongTitle">Are you sure you want to delete Robot - {{ robot.robot_name }}?</h5>
+                                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                  </button>
+                                </div>
+                                <div class="modal-footer">
+                                  <button type="button" class="btn btn-secondary">Yes</button>
+                                  <button type="button" class="btn btn-primary" data-dismiss="modal">No, Don't Delete Robot {{ robot.robot_name }}</button></button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                      </tr>
+                    {% endfor %}
+
+                  </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <div class="row ml-md-auto">
+            <div class="col center">
+                <h4 class="display-6">
+                    Current Robot Status
+                </h4>
+
+                <table class="table table-hover" width="100%" ID="Table2" style="margin: 0px">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Robot</th>
+                      <th>IP Address</th>
+                      <th>Location</th>
+                      <th>Position</th>
+                      <th>Task Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row">1</th>
+                      <td>Mark</td>
+                      <td>Otto</td>
+                      <td>@mdo</td>
+                    </tr>
+                    <tr>
+                  </tbody>
+                </table>
+            </div>
+          </div>
+
+    </main>
+{% endblock %}
