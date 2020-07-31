@@ -1,0 +1,27 @@
+body {
+    background-color: white;
+    color: black;
+    margin: 5%;
+    font-family: Optima, monospace;
+}
+
+h1 {
+    font-family: Optima, monospace;
+}
+a {
+
+    text-decoration: none;
+    font-family: Optima, monospace;
+    color: white;
+}
+
+
+.navbar .nav-link {
+    color: white;
+}
+
+.content {
+    text-decoration: none;
+    margin: 5%;
+
+}

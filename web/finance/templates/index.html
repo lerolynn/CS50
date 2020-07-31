@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Homepage
+{% endblock %}
+
+{% block main %}
+    <main class="cash">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Shares</th>
+                    <th>Price</th>
+                    <th>TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for stock in stocks %}
+                {% if stock.total_shares > 0 %}
+                    <tr>
+                        <td>{{ stock.symbol }}</td>
+                        <td>{{ stock.name }}</td>
+                        <td>{{ stock.total_shares }}</td>
+                        <td>${{ "%.2f" | format(stock.price) }}</td>
+                        <td>${{ "%.2f" | format(stock.price * stock.total_shares) }}</td>
+                    </tr>
+                {% endif %}
+            {% endfor %}
+                <tr>
+                    <td>CASH</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>${{ "%.2f" | format(cash) }}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><b>${{ "%.2f" | format(total) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </main>
+{% endblock %}

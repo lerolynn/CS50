@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <title>Lerolyn's Homepage</title>
+        <link rel="stylesheet" href="styles.css">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+        <script src="search.js">
+
+        </script>
+    </head>
+
+    <body>
+        <nav class="navbar nav-tabs sticky-top navbar-dark bg-dark">
+            <a class="navbar-brand" href="#">Lerolyn's Homepage</a>
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link home" href="about.html">About</a>
+                </li>
+
+                <li class=javas"nav-item">
+                    <a class="nav-link" href="projects.html">Projects</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="blog.html">Blog</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="contact.html">Contact</a>
+                </li>
+
+            </ul>
+            <form class="form-inline" onsubmit="visitors(); return false;">
+                <input class="form-control mr-sm-2" type="text" id="name" placeholder="Name">
+                <input class="btn btn-outline-success my-2 my-sm-0" type="submit">
+            </form>
+        </nav>
+
+        <div class="content">
+
+            <h1><div id="result">Welcome!</div></h1>
+
+            <div class="text-center">
+                <a href="about.html">
+                    <img src="lero.png" class="img-fluid rounded" alt="About" width="70%" height="auto">
+                </a>
+                <h1>About Me</h1>
+
+            </div>
+
+            <h2>Past Visitors</h2>
+            <p id="past"></p>
+        </div>
+
+
+
+    </body>
+</html>

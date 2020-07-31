@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <title>Hello!</title>
+        <script>
+            let counter = 0;
+
+            function increment()
+            {
+                counter++;
+                document.querySelector('#result').innerHTML = counter;
+            }
+        </script>
+    </head>
+    <body>
+        Hello, world!
+        <form onsubmit="increment(); return false;">
+            <input type="text" id="name">
+            <input type="submit">
+        </form>
+        <div id="result">
+            Hello!
+        </div>
+    </body>
+</html>
