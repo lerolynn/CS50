@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS tasks;
 CREATE TABLE users (
 	id INTEGER PRIMARY KEY NOT NULL,
 	username TEXT NOT NULL,
+    name TEXT,
     hash TEXT NOT NULL
 );
 
@@ -60,4 +61,4 @@ CREATE TABLE tasks (
     FOREIGN KEY (goal_station) REFERENCES stations(id)
 );
 
-INSERT INTO users (username, hash) VALUES ('admin', "pbkdf2:sha256:150000$RydnHB1s$4e8c13bb779b3403c3e7dbd3800ffabe4908b44e57578fa150108c83d84d2253");
+INSERT INTO users (username, name, hash) VALUES ('admin', 'Administrator', "pbkdf2:sha256:150000$N5Smgi8z$5eb6d8ad726f4a60435cfb9354f0f5495581477617b6d9b071b45492fe17266a");

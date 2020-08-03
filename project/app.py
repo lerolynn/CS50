@@ -1,4 +1,6 @@
 import os
+import sqlite3
+from sqlite3 import Error
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from flask_session import Session
@@ -7,7 +9,7 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# from helpers import apology, lookup
+from helpers import apology
 
 # Configure application
 app = Flask(__name__)
@@ -29,35 +31,24 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# Configure CS50 Library to use SQLite database
-# db = SQL("sqlite:///robots.db")
+# Create database connection to the SQLite database
+conn = None
+try:
+    conn = sqlite3.connect("robots.db", check_same_thread=False)
+except Error as e:
+    print(e)
 
 @app.route("/")
 def index():
     """Homepage of robot manager"""
 
-    if session['logged_in'] == False:
-        return redirect("login")
-    # robots = db.execute("SELECT * FROM robots")
+    if not session:
+        return redirect("/login")
+    cur = conn.cursor()
+    robots = cur.execute("SELECT * FROM robots")
 
     # Redirect user to home page
     return render_template("index.html", robots=robots)
-
-# def index():
-#     """Show portfolio of stocks"""
-#     user_cash = db.execute("SELECT cash FROM users WHERE id=:username", username=session["user_id"])
-#     cash = user_cash[0]["cash"]
-
-#     stocks = db.execute("SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE user_id=:username GROUP BY symbol", username=session["user_id"])
-
-#     total = cash
-#     for stock in stocks:
-#         quote = lookup(stock["symbol"])
-#         stock.update(quote)
-#         total+= stock["price"] * stock["total_shares"]
-
-#     # Redirect user to home page
-#     return render_template("index.html", stocks=stocks, cash=cash, total=total)
 
 @app.route("/add_robot", methods=["GET", "POST"])
 def add_robot():
@@ -97,17 +88,19 @@ def login():
             return apology("must provide password", 403)
 
         # Query database for username
-        # rows = db.execute("SELECT * FROM users WHERE username = :username",
-        #                   username=request.form.get("username"))
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE username=:username", {"username": request.form.get("username")})
+
+        rows = cur.fetchall()
 
         # Ensure username exists and password is correct
-        if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
+        if len(rows) != 1 or not check_password_hash(rows[0][3], request.form.get("password")):
             return apology("invalid username and/or password", 403)
 
-        session['logged_in'] = True
-
         # Remember which user has logged in
-        session["user_id"] = rows[0]["id"]
+        session["user_id"] = rows[0][0]
+        session["username"] = rows[0][1]
+        session["name"] = rows[0][2]
 
         # Redirect user to home page
         return redirect("/")
@@ -119,7 +112,7 @@ def login():
 
 @app.route("/logout")
 def logout():
-    session['logged_in'] = False
+    session.clear()
     return redirect("login")
 
 @app.route("/register", methods=["GET", "POST"])
@@ -128,22 +121,34 @@ def register():
 
     session.clear()
     if request.method == "POST":
+        username = request.form.get("username")
+        name = username.capitalize()
 
-        # Check that passwords are input and are identical
-        if not request.form.get("password"):
-            return apology("missing password", 400)
+        if request.form.get("name"):
+            name = request.form.get("name").capitalize()
 
-        if not request.form.get("confirmation"):
-            return apology("must provide password", 400)
-
-        if request.form.get("password") != request.form.get("confirmation"):
-            return apology("passwords must match", 400)
-
-        # Generate password hash from password
         pwhash = generate_password_hash(request.form.get("password"))
 
-        # Insert username, password has and cash value into database
-        # db.execute("INSERT INTO users (username, hash) VALUES(?, ?)", request.form.get("username"), pwhash)
+        # Insert username, name and password hash value into database
+        cur = conn.cursor()
+
+        # Check if username already exists in database
+        cur.execute("SELECT * FROM users WHERE username=:username", {"username": username})
+        rows = cur.fetchall()
+        
+        if len(rows) > 0:
+            return apology("Username Already Exists", 400)
+
+        # Commit new user into database
+        cur.execute("INSERT INTO users (username, name, hash) VALUES(?, ?, ?)", (username, name, pwhash))
+        cur.execute("SELECT * FROM users WHERE username=:username", {"username": username})
+        rows = cur.fetchall()
+        conn.commit()
+
+        # Remember which user and log in
+        session["user_id"] = rows[0][0]
+        session["username"] = username
+        session["name"] = name
 
         return redirect("/")
     # User reached route via GET
