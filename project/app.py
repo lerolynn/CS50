@@ -155,6 +155,92 @@ def register():
     else:
         return render_template("register.html")
 
+@app.route("/forgot_password", methods=["GET", "POST"])
+def forgot_password():
+    """Log user in"""
+
+    # Forget any user_id
+    session.clear()
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+
+        # Query database for 1st user account in database (admin account)
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE id=:id", {"id": "1"})
+        rows = cur.fetchall()
+
+        # Ensure admin account exists and password of admin account is correct
+        if len(rows) == 1 and check_password_hash(rows[0][3], request.form.get("password")):
+            session["username"] = rows[0][1]
+            # Redirect user to home page
+            return redirect("/change_password")
+
+        else:
+            return redirect("/forgot_password")
+
+    # User reached route via GET (as by clicking a link or via redirect)
+    else:
+        return render_template("forgot_password.html")
+
+@app.route("/change_password", methods=["GET", "POST"])
+def change_password():
+    """Allow users to change password"""
+    
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+
+        # Set cursor for database
+        cur = conn.cursor()
+
+        # If user is changing password from forgot_password route
+        if "username" not in session:
+            username = request.form.get("username")
+
+            # Check if username exists in database
+            cur.execute("SELECT * FROM users WHERE username=:username", {"username": username})
+            rows = cur.fetchall()
+            if len(rows) == 0:
+                return apology("User Does Not Exist", 400)
+        else:
+            # Check if username already exists in database
+            cur.execute("SELECT * FROM users WHERE username=:username", {"username": session["username"]})
+            rows = cur.fetchall()
+            if not check_password_hash(rows[0][3], request.form.get("old_password")):
+                return apology("Wrong Password", 400)
+        username = rows[0][1]
+
+        # Get new password from the user
+        new_pwhash = generate_password_hash(request.form.get("password"))
+
+        # Update database with new password
+        cur.execute("UPDATE users SET hash = ? WHERE username = ?", (new_pwhash, username))
+        cur.execute("SELECT * FROM users WHERE username=:username", {"username": username})
+        rows = cur.fetchall()
+        conn.commit()
+
+        # Remember and login user
+        session["user_id"] = rows[0][0]
+        session["username"] = rows[0][1]
+        session["name"] = rows[0][2]
+
+        # Redirect user to homepage
+        return redirect("/")
+
+    # User reached route via GET (as by clicking a link or via redirect)
+    else:
+        # If user is changing password from forgot_password route
+        if "username" not in session:
+            # if session["username"] != rows[0][1]:
+            return render_template("forgot_password.html")
+        else:
+            # Query database for 1st user account in database (admin account)
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM users WHERE id=:id", {"id": "1"})
+            rows = cur.fetchall()
+            # Forget admin user login
+            if session["username"] == rows[0][1] and "user_id" not in session:
+                session.clear()
+            return render_template("change_password.html")
 
 def errorhandler(e):
     """Handle error"""
