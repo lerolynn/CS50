@@ -8,14 +8,19 @@ from flask_login import LoginManager
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
-from helpers import apology
+from helpers import *
 
 # Configure application
 app = Flask(__name__)
 
 # Ensure templates are auto-reloaded
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+# Get absolute path of uploads folder
+dirname = os.path.dirname(__file__)
+app.config["MAP_UPLOADS"] = os.path.join(dirname, "static/uploads/maps")
 
 # Ensure responses aren't cached
 @app.after_request
@@ -50,24 +55,45 @@ def index():
     # Redirect user to home page
     return render_template("index.html", robots=robots)
 
-@app.route("/add_robot", methods=["GET", "POST"])
-def add_robot():
-    """Adds a new robot to the server"""
+@app.route("/maps", methods=["GET", "POST"])
+def maps():
+    if not session:
+        return redirect("/login")
+
     if request.method == "POST":
+        if "mapImage" in request.files and "yamlFile" in request.files:
 
-        if not request.form.get("password"):
-            return apology("missing password", 400)
+            # Request map image and yaml file 
+            map_image = request.files["mapImage"]
+            yml = request.files["yamlFile"]
 
-        if not request.form.get("confirmation"):
-            return apology("must provide password", 400)
+            # Ensure that map image and yaml file 
+            if map_image.filename == "" or yml.filename == "":
+                return apology("No filename", 400)
 
-        if request.form.get("password") != request.form.get("confirmation"):
-            return apology("passwords must match", 400)
-        return redirect("/")
+            if allowed_image(map_image.filename) and allowed_yaml(yml.filename):
+                map_filename = secure_filename(map_image.filename)
+                map_image.save(os.path.join(app.config["MAP_UPLOADS"], map_filename))
+                
+                yml_filename = secure_filename(yml.filename)
+                yml.save(os.path.join(app.config["MAP_UPLOADS"], yml_filename))
+                return redirect(request.url)
 
-    # User reached route via GET (as by clicking a link or via redirect)
-    return render_template("add_robot.html")
+            else:
+                return apology("Invalid filename", 400)
+        
+        else:
+            return apology("Please upload map image and yaml file", 400)
 
+    return render_template("maps.html")
+
+@app.route("/robots")
+def robots():
+    return render_template("robots.html")
+
+@app.route("/tasks")
+def tasks():
+    return render_template("tasks.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():

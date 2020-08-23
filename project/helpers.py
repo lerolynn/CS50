@@ -5,7 +5,6 @@ import urllib.parse
 from flask import redirect, render_template, request, session
 from functools import wraps
 
-
 def apology(message, code=400):
     """Render message as an apology to user."""
     def escape(s):
@@ -21,15 +20,24 @@ def apology(message, code=400):
     return render_template("apology.html", top=code, bottom=escape(message)), code
 
 
-def login_required(f):
-    """
-    Decorate routes to require login.
+def allowed_image(filename):
+    if not "." in filename:
+        return False
 
-    http://flask.pocoo.org/docs/1.0/patterns/viewdecorators/
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if session.get("user_id") is None:
-            return redirect("/login")
-        return f(*args, **kwargs)
-    return decorated_function
+    ext = filename.rsplit(".", 1)[1]
+
+    if ext.upper() in ["JPEG", "JPG", "PNG", "PGM"]:
+        return True
+    else:
+        return False
+
+def allowed_yaml(filename):
+    if not "." in filename:
+        return False
+
+    ext = filename.rsplit(".", 1)[1]
+
+    if ext.upper() == "YAML":
+        return True
+    else:
+        return False
