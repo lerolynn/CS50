@@ -20,6 +20,8 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 # Get absolute path of uploads folder
 dirname = os.path.dirname(__file__)
+app.config["UPLOADS"] = os.path.join(dirname, "static/uploads")
+app.config["USR_UPLOADS"] = os.path.join(dirname, "static/uploads")
 app.config["MAP_UPLOADS"] = os.path.join(dirname, "static/uploads/maps")
 
 # Ensure responses aren't cached
@@ -40,60 +42,9 @@ Session(app)
 conn = None
 try:
     conn = sqlite3.connect("robots.db", check_same_thread=False)
+    conn.row_factory = sqlite3.Row
 except Error as e:
     print(e)
-
-@app.route("/")
-def index():
-    """Homepage of robot manager"""
-
-    if not session:
-        return redirect("/login")
-    cur = conn.cursor()
-    robots = cur.execute("SELECT * FROM robots")
-
-    # Redirect user to home page
-    return render_template("index.html", robots=robots)
-
-@app.route("/maps", methods=["GET", "POST"])
-def maps():
-    if not session:
-        return redirect("/login")
-
-    if request.method == "POST":
-        if "mapImage" in request.files and "yamlFile" in request.files:
-
-            # Request map image and yaml file 
-            map_image = request.files["mapImage"]
-            yml = request.files["yamlFile"]
-
-            # Ensure that map image and yaml file 
-            if map_image.filename == "" or yml.filename == "":
-                return apology("No filename", 400)
-
-            if allowed_image(map_image.filename) and allowed_yaml(yml.filename):
-                map_filename = secure_filename(map_image.filename)
-                map_image.save(os.path.join(app.config["MAP_UPLOADS"], map_filename))
-                
-                yml_filename = secure_filename(yml.filename)
-                yml.save(os.path.join(app.config["MAP_UPLOADS"], yml_filename))
-                return redirect(request.url)
-
-            else:
-                return apology("Invalid filename", 400)
-        
-        else:
-            return apology("Please upload map image and yaml file", 400)
-
-    return render_template("maps.html")
-
-@app.route("/robots")
-def robots():
-    return render_template("robots.html")
-
-@app.route("/tasks")
-def tasks():
-    return render_template("tasks.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -128,6 +79,11 @@ def login():
         session["username"] = rows[0][1]
         session["name"] = rows[0][2]
 
+        # Update uploads folder to include user
+        app.config["USR_UPLOADS"] = os.path.join(app.config["UPLOADS"], session["username"])
+        app.config["MAP_UPLOADS"] = os.path.join(app.config["USR_UPLOADS"], "maps")
+        print(app.config["MAP_UPLOADS"])
+
         # Redirect user to home page
         return redirect("/")
 
@@ -135,6 +91,119 @@ def login():
     else:
         return render_template("login.html")
 
+@app.route("/")
+def index():
+    """Homepage of robot manager"""
+
+    if not session:
+        return redirect("/login")
+
+    cur = conn.cursor()
+    robots = cur.execute("SELECT * FROM robots")
+
+    # Redirect user to home page
+    return render_template("index.html", robots=robots)
+
+@app.route("/maps", methods=["GET", "POST"])
+def maps():
+    if not session:
+        return redirect("/login")
+
+    if request.method == "POST":
+        if "mapImage" in request.files and "yamlFile" in request.files:
+
+            # Request map image and yaml file 
+            map_image = request.files["mapImage"]
+            yml = request.files["yamlFile"]
+
+            # Ensure that map image and yaml file 
+            if map_image.filename == "" or yml.filename == "":
+                return apology("No filename", 400)
+
+            if allowed_image(map_image.filename) and allowed_yaml(yml.filename):
+                map_filename = secure_filename(map_image.filename)
+                map_image.save(os.path.join(app.config["MAP_UPLOADS"], map_filename))
+                
+                yml_filename = secure_filename(yml.filename)
+                yml.save(os.path.join(app.config["MAP_UPLOADS"], yml_filename))
+                
+                # Get map name
+                map_name = map_filename.rsplit(".", 1)[0]
+                
+                # Connect to database
+                cur = conn.cursor()
+
+                # Check if map already exists in database
+                cur.execute("SELECT * FROM maps WHERE map_name=? AND user_id=?", (map_name, session["user_id"]))
+                rows = cur.fetchall()
+                if len(rows) > 0:
+                    return apology("Map already exists", 400)
+                
+                # Update database with map
+                cur.execute("INSERT INTO maps (user_id, map_name, mapfile, yamlfile) VALUES (?, ?, ?, ?)", (session["user_id"], map_name,  map_filename, yml_filename))
+                conn.commit()
+                
+                return redirect(request.url)
+
+            else:
+                return apology("Invalid filename", 400)
+        
+        else:
+            return apology("Please upload map image and yaml file", 400)
+
+    cur = conn.cursor()
+    maps = cur.execute("SELECT * FROM maps WHERE user_id=?", (session["user_id"],))
+
+    return render_template("maps.html", maps=maps)
+
+@app.route("/delete_map", methods=["POST"])
+def delete_map():
+    """
+        Function to delete map from database
+    """
+
+    # Check that user has logged in
+    if not session:
+        return redirect("/login")
+
+    # Get map data from database
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM maps WHERE id=(?)", (request.form.get("map_id")))
+    row = cur.fetchone()
+
+    # Delete map files
+    img_path = os.path.join(app.config["MAP_UPLOADS"], row[3])
+    yml_path = os.path.join(app.config["MAP_UPLOADS"], row[4])
+    
+    if os.path.isfile(img_path):
+        os.remove(img_path)
+
+    if os.path.isfile(yml_path):
+        os.remove(yml_path)
+    
+    # Delete map from database
+    cur.execute("DELETE FROM maps WHERE id=(?)", (request.form.get("map_id")))
+    conn.commit()
+
+    return redirect("/maps")
+
+@app.route("/robots")
+def robots():
+    """
+        Display list of robots, allows user to add robot
+    """
+
+    # Check that user is logged in
+    if not session:
+        return redirect("/login")
+
+    cur = conn.cursor()
+    robots = cur.execute("SELECT * FROM robots")
+    return render_template("robots.html", robots=robots)
+
+@app.route("/tasks")
+def tasks():
+    return render_template("tasks.html")
 
 @app.route("/logout")
 def logout():
@@ -170,6 +239,14 @@ def register():
         cur.execute("SELECT * FROM users WHERE username=:username", {"username": username})
         rows = cur.fetchall()
         conn.commit()
+
+        # Create new user folder in uploads directory
+        usr_folder = os.path.join(app.config["UPLOADS"], username)
+        if not os.path.exists(usr_folder):
+            os.makedirs(os.path.join(usr_folder,"maps"))
+            os.makedirs(os.path.join(usr_folder,"tasks"))
+            # Update user path
+            app.config["USR_UPLOADS"] = usr_folder
 
         # Remember which user and log in
         session["user_id"] = rows[0][0]
