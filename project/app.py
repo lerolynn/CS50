@@ -46,6 +46,18 @@ try:
 except Error as e:
     print(e)
 
+@app.route("/")
+def index():
+    """Homepage of robot manager"""
+
+    if not session:
+        return redirect("/login")
+
+    cur = conn.cursor()
+    robots = cur.execute("SELECT * FROM robots WHERE user_id=?", (session["user_id"],))
+    # Redirect user to home page
+    return render_template("index.html", robots=robots)
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Log user in"""
@@ -91,24 +103,12 @@ def login():
     else:
         return render_template("login.html")
 
-@app.route("/")
-def index():
-    """Homepage of robot manager"""
-
-    if not session:
-        return redirect("/login")
-
-    cur = conn.cursor()
-    robots = cur.execute("SELECT * FROM robots")
-
-    # Redirect user to home page
-    return render_template("index.html", robots=robots)
-
 @app.route("/maps", methods=["GET", "POST"])
 def maps():
     if not session:
         return redirect("/login")
 
+    # Adds a map to the database and to the file server
     if request.method == "POST":
         if "mapImage" in request.files and "yamlFile" in request.files:
 
@@ -187,19 +187,101 @@ def delete_map():
 
     return redirect("/maps")
 
-@app.route("/robots")
+@app.route("/robots", methods=["GET", "POST"])
 def robots():
     """
         Display list of robots, allows user to add robot
     """
-
     # Check that user is logged in
     if not session:
         return redirect("/login")
 
+    # Adds a robot to the database
+    if request.method == "POST":
+
+        # Get robot data from form
+        robot_name = request.form.get("robot_name")
+        robot_type = request.form.get("robot_type")
+        ip_address = request.form.get("ip_address")
+
+        # Connect to database
+        cur = conn.cursor()
+        
+        # Check if robot already exists
+        cur.execute("SELECT * FROM robots WHERE robot_name=? AND user_id=?", (robot_name, session["user_id"]))
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            return apology("IP Address already in use", 400)
+
+        # Check if ip address is used
+        cur.execute("SELECT * FROM robots WHERE ip_address=? AND user_id=?", (ip_address, session["user_id"]))
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            return apology("IP Address already in use", 400)
+
+        # Update database with robot
+        cur.execute("INSERT INTO robots (user_id, robot_name, robot_type, ip_address) VALUES (?, ?, ?, ?)", (session["user_id"], robot_name,  robot_type, ip_address))
+        conn.commit()
+
+        return redirect(request.url)
+
     cur = conn.cursor()
-    robots = cur.execute("SELECT * FROM robots")
+    robots = cur.execute("SELECT * FROM robots WHERE user_id=?", (session["user_id"],))
     return render_template("robots.html", robots=robots)
+
+@app.route("/update_robot", methods=["POST"])
+def update_robot():
+    """
+        Function to update robot info
+    """
+
+    # Get robot update data from form
+    robot_id = request.form.get("robot_id")
+    robot_name = request.form.get("robot_name")
+    robot_type = request.form.get("robot_type")
+    ip_address = request.form.get("ip_address")
+
+    # Get data for robot
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM robots WHERE id=? AND user_id=?", (robot_id, session["user_id"]))
+    rows = cur.fetchall()
+
+    # Check if robot exists in database
+    if len(rows) == 0:
+        return apology("Robot not in database", 400)
+
+    # Check that IP address has not already been in use
+    cur.execute("SELECT ip_address FROM robots WHERE user_id=?", (session["user_id"],))
+    rows = cur.fetchall()
+    for row in rows:
+        if row[0] == ip_address:
+            return apology("IP Address already in use", 400)
+
+    cur.execute("UPDATE robots SET robot_name=?, robot_type=?, ip_address=? WHERE id=?", (robot_name, robot_type, ip_address, robot_id))
+    conn.commit()
+
+    return redirect("/robots")
+
+
+@app.route("/delete_robot", methods=["POST"])
+def delete_robot():
+    """
+        Function to delete map from database
+    """
+
+    # Check that user has logged in
+    if not session:
+        return redirect("/login")
+
+    cur = conn.cursor()
+
+    # Delete map from database
+    cur.execute("DELETE FROM robots WHERE id=(?)", (request.form.get("robot_id")))
+    conn.commit()
+
+    return redirect("/robots")
+
 
 @app.route("/tasks")
 def tasks():
