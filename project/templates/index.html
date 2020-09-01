@@ -15,6 +15,7 @@
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
 
 {% endblock %}
+
   <div class="">
     <div class="row">
       <div class="col-xs-4 col-sm-6 col-md-6 col-lg-8">
@@ -73,7 +74,7 @@
                   <li class="list-group-item">
                     <h5 class="card-title">Tasklist</h5>
                     
-                      <select class="form-control" id="tasklist" data-width="200px">
+                      <select class="form-control" name="tasklist" id="tasklist" data-width="200px">
                         {% for tasklist in tasklists %}
                           <option>{{ tasklist.tasklist_name }}</option>
                         {% endfor %}
@@ -82,7 +83,7 @@
                   <li class="list-group-item">
                     <h5 class="card-title">Robots</h5>
                     <div class="form-group">
-                      <select multiple class="selectpicker" data-width="200px">
+                      <select multiple class="selectpicker" data-width="200px" name="robotlist" id="robotlist">
                           {% for robot in robots %}
                             <option>{{ robot.robot_name }}</option>
                           {% endfor %}
@@ -254,7 +255,7 @@
     </div>
   </div>
 
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script>
+
 
 {% endblock %}

@@ -5,7 +5,7 @@ import json
 from PIL import Image
 from sqlite3 import Error
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_session import Session
 from flask_login import LoginManager
 from tempfile import mkdtemp
@@ -32,7 +32,7 @@ app.config["TASK_UPLOADS"] = os.path.join(dirname, "static/uploads/maps")
 
 # Path of static folder 
 app.config["STATIC_PATH"] = "static/uploads"
-
+app.config["STATIC_USR_PATH"] = "static/uploads"
 # Ensure responses aren't cached
 @app.after_request
 def after_request(response):
@@ -85,11 +85,30 @@ def index():
         # Redirect user to home page
         return render_template("index.html", map_path=None, maps=maps, robots=robots, tasklists=tasklists)
 
-    map_path = os.path.join(app.config["STATIC_PATH"], "maps", rows[0][2])
+    map_path = os.path.join(app.config["STATIC_USR_PATH"], "maps", rows[0][2])
     map_name = rows[0][2].rsplit(".", 1)[0]
 
     # Redirect user to home page
     return render_template("index.html", map_path=map_path, map_name=map_name, maps=maps, robots=robots, tasklists=tasklists)
+
+
+@app.route("/run_tasks", methods=["GET", "POST"])
+def run_tasks():
+    tasklist = request.form.get("tasklist")
+    robotlist = request.form.getlist("robotlist")
+
+    # Connect to database
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM homepage WHERE user_id=?", (session["user_id"],))
+    rows = cur.fetchall()
+    if len(rows) == 0:
+        return apology("Select Map and try again", 400)
+
+    map_name = rows[0][2].rsplit(".", 1)[0]
+
+    print("Tasklist " + tasklist + " running on map " + map_name + " with robots ", end="")
+    print(robotlist)
+    return redirect(url_for('.index', run=True))
 
 @app.route("/select_map", methods=["POST"])
 def select_map():
@@ -168,7 +187,7 @@ def login():
         app.config["MAP_UPLOADS"] = os.path.join(app.config["USR_UPLOADS"], "maps")
         app.config["TASK_UPLOADS"] = os.path.join(app.config["USR_UPLOADS"], "tasks")
 
-        app.config["STATIC_PATH"] = os.path.join(app.config["STATIC_PATH"], session["username"])
+        app.config["STATIC_USR_PATH"] = os.path.join(app.config["STATIC_PATH"], session["username"])
 
         # Redirect user to home page
         return redirect("/")
@@ -303,7 +322,7 @@ def robots():
         cur.execute("SELECT * FROM robots WHERE robot_name=? AND user_id=?", (robot_name, session["user_id"]))
         rows = cur.fetchall()
         if len(rows) > 0:
-            return apology("IP Address already in use", 400)
+            return apology("Robot already exists", 400)
 
         # Check if ip address is used
         cur.execute("SELECT * FROM robots WHERE ip_address=? AND user_id=?", (ip_address, session["user_id"]))
@@ -465,7 +484,9 @@ def logout():
     """
         Logs the user out
     """
-
+    app.config["USR_UPLOADS"] = app.config["UPLOADS"]
+    app.config["STATIC_USR_PATH"] = app.config["STATIC_PATH"]
+    
     session.clear()
     return redirect("login")
 
