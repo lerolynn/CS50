@@ -60,7 +60,8 @@
                   <tr>
                     <th>ID</th>
                     <th>Map Name</th>
-                    <th>Map Filename</th>
+                    <th>Map Filename (PGM)</th>
+                    <th>Map Filename (JPG)</th>
                     <th>YAML Filename</th>
                     <th></th>
                   </tr>
@@ -71,7 +72,12 @@
                   <tr>
                     <td>{{  map.id  }}</td>
                     <td>{{  map.map_name  }}</td>
-                    <td>{{  map.mapfile  }}</td>
+                    {% if map.map_pgm == None %}
+                      <td>-</td>
+                    {% else %}
+                      <td>{{  map.map_pgm  }}</td>
+                    {% endif %}
+                    <td>{{  map.map_jpg  }}</td>
                     <td>{{  map.yamlfile  }}</td>
                     <td>
                       <div class="dropdown">

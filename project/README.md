@@ -13,3 +13,21 @@ pip3 install db-sqlite3
 ```
 $ flask run
 ```
+
+## JSON format for tasklist
+```
+{
+    "tasks_name": "test_task",
+
+    "map_name": "test",
+    "map_file": "test.pgm",
+    "yaml_file": "test.yaml",
+
+    "tasks": [
+        {"id": "0", "waypoint": [0, 0, 0]},
+        {"id": "1", "waypoint": [1, 1, 1]},
+        {"id": "2", "waypoint": [2, 2, 2]},
+        {"id": "3", "waypoint": [3, 3, 3]}
+    ]
+}
+```

@@ -1,5 +1,8 @@
 import os
 import sqlite3
+import json
+
+from PIL import Image
 from sqlite3 import Error
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
@@ -21,8 +24,14 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 # Get absolute path of uploads folder
 dirname = os.path.dirname(__file__)
 app.config["UPLOADS"] = os.path.join(dirname, "static/uploads")
+
+# Path of user in uploads folder
 app.config["USR_UPLOADS"] = os.path.join(dirname, "static/uploads")
 app.config["MAP_UPLOADS"] = os.path.join(dirname, "static/uploads/maps")
+app.config["TASK_UPLOADS"] = os.path.join(dirname, "static/uploads/maps")
+
+# Path of static folder 
+app.config["STATIC_PATH"] = "static/uploads"
 
 # Ensure responses aren't cached
 @app.after_request
@@ -46,17 +55,80 @@ try:
 except Error as e:
     print(e)
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def index():
     """Homepage of robot manager"""
 
     if not session:
         return redirect("/login")
-
+ 
+    # Connect to database
     cur = conn.cursor()
-    robots = cur.execute("SELECT * FROM robots WHERE user_id=?", (session["user_id"],))
+
+    # Get map data from database
+    cur.execute("SELECT * FROM maps WHERE user_id=?", (session["user_id"],))
+    maps = cur.fetchall()
+
+    # Get robot data from database
+    cur.execute("SELECT * FROM robots WHERE user_id=?", (session["user_id"],))
+    robots = cur.fetchall()
+
+    # Get task data from database
+    cur.execute("SELECT * FROM tasklists WHERE user_id=?", (session["user_id"],))
+    tasklists = cur.fetchall()
+
+    # Get homepage display data
+    cur.execute("SELECT * FROM homepage WHERE user_id=?", (session["user_id"],))
+    rows = cur.fetchall()
+    
+    if len(rows) == 0:
+        # Redirect user to home page
+        return render_template("index.html", map_path=None, maps=maps, robots=robots, tasklists=tasklists)
+
+    map_path = os.path.join(app.config["STATIC_PATH"], "maps", rows[0][2])
+    map_name = rows[0][2].rsplit(".", 1)[0]
+
     # Redirect user to home page
-    return render_template("index.html", robots=robots)
+    return render_template("index.html", map_path=map_path, map_name=map_name, maps=maps, robots=robots, tasklists=tasklists)
+
+@app.route("/select_map", methods=["POST"])
+def select_map():
+    """Selects map to display"""
+
+    if not session:
+        return redirect("/login")
+
+    # Connect to database
+    cur = conn.cursor()
+
+    # Get map data of corresponding map
+    cur.execute("SELECT * FROM maps WHERE id=? AND user_id=?", (request.form.get("display_map"), session["user_id"]))
+    rows = cur.fetchall()
+
+    if len(rows) == 0:
+        return apology("Map does not exist", 400)
+
+    # Update homepage display database
+    cur.execute("INSERT INTO homepage (user_id, map, map_jpg) VALUES (?, ?, ?)", (session["user_id"], rows[0][0], rows[0][4]))
+    conn.commit()
+
+    return redirect("/")
+
+@app.route("/reselect_display", methods=["POST"])
+def reselect_display():
+    """Reselects map to display"""
+
+    if not session:
+        return redirect("/login")
+
+    # Connect to database
+    cur = conn.cursor()
+
+    # Delete map display data for user
+    cur.execute("DELETE FROM homepage WHERE user_id=?", (session["user_id"],))
+    conn.commit()
+
+    return redirect("/")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -94,7 +166,9 @@ def login():
         # Update uploads folder to include user
         app.config["USR_UPLOADS"] = os.path.join(app.config["UPLOADS"], session["username"])
         app.config["MAP_UPLOADS"] = os.path.join(app.config["USR_UPLOADS"], "maps")
-        print(app.config["MAP_UPLOADS"])
+        app.config["TASK_UPLOADS"] = os.path.join(app.config["USR_UPLOADS"], "tasks")
+
+        app.config["STATIC_PATH"] = os.path.join(app.config["STATIC_PATH"], session["username"])
 
         # Redirect user to home page
         return redirect("/")
@@ -105,6 +179,10 @@ def login():
 
 @app.route("/maps", methods=["GET", "POST"])
 def maps():
+    """ 
+        Displays list of maps for user 
+    """
+
     if not session:
         return redirect("/login")
 
@@ -116,20 +194,33 @@ def maps():
             map_image = request.files["mapImage"]
             yml = request.files["yamlFile"]
 
-            # Ensure that map image and yaml file 
+            # Ensure that map image and yaml file is valid
             if map_image.filename == "" or yml.filename == "":
                 return apology("No filename", 400)
 
             if allowed_image(map_image.filename) and allowed_yaml(yml.filename):
+
+                # Save map in user folder
                 map_filename = secure_filename(map_image.filename)
                 map_image.save(os.path.join(app.config["MAP_UPLOADS"], map_filename))
-                
+
                 yml_filename = secure_filename(yml.filename)
                 yml.save(os.path.join(app.config["MAP_UPLOADS"], yml_filename))
-                
+
                 # Get map name
                 map_name = map_filename.rsplit(".", 1)[0]
+                ext = map_filename.rsplit(".", 1)[1]
+
+                if ext.upper() == "PGM":
+                    # Save map in html-readable format for pgm files (jpg)
+                    im = Image.open(os.path.join(app.config["MAP_UPLOADS"], map_filename))
+                    jpg_filename = map_name + ".jpg"
+                    im.save(os.path.join(app.config["MAP_UPLOADS"], jpg_filename))
                 
+                elif ext.upper() == "JPG":
+                    jpg_filename = map_filename
+                    map_filename = None
+   
                 # Connect to database
                 cur = conn.cursor()
 
@@ -140,19 +231,20 @@ def maps():
                     return apology("Map already exists", 400)
                 
                 # Update database with map
-                cur.execute("INSERT INTO maps (user_id, map_name, mapfile, yamlfile) VALUES (?, ?, ?, ?)", (session["user_id"], map_name,  map_filename, yml_filename))
+                cur.execute("INSERT INTO maps (user_id, map_name, map_pgm, map_jpg, yamlfile) VALUES (?, ?, ?, ?, ?)", (session["user_id"], map_name,  map_filename, jpg_filename, yml_filename))
                 conn.commit()
                 
                 return redirect(request.url)
 
             else:
-                return apology("Invalid filename", 400)
+                return apology("Please upload map image and YAML file", 400)
         
         else:
             return apology("Please upload map image and yaml file", 400)
 
     cur = conn.cursor()
-    maps = cur.execute("SELECT * FROM maps WHERE user_id=?", (session["user_id"],))
+    cur.execute("SELECT * FROM maps WHERE user_id=?", (session["user_id"],))
+    maps = cur.fetchall()
 
     return render_template("maps.html", maps=maps)
 
@@ -173,7 +265,7 @@ def delete_map():
 
     # Delete map files
     img_path = os.path.join(app.config["MAP_UPLOADS"], row[3])
-    yml_path = os.path.join(app.config["MAP_UPLOADS"], row[4])
+    yml_path = os.path.join(app.config["MAP_UPLOADS"], row[5])
     
     if os.path.isfile(img_path):
         os.remove(img_path)
@@ -226,7 +318,9 @@ def robots():
         return redirect(request.url)
 
     cur = conn.cursor()
-    robots = cur.execute("SELECT * FROM robots WHERE user_id=?", (session["user_id"],))
+    cur.execute("SELECT * FROM robots WHERE user_id=?", (session["user_id"],))
+    robots = cur.fetchall()
+
     return render_template("robots.html", robots=robots)
 
 @app.route("/update_robot", methods=["POST"])
@@ -282,19 +376,104 @@ def delete_robot():
 
     return redirect("/robots")
 
-
-@app.route("/tasks")
+@app.route("/tasks", methods=["GET", "POST"])
 def tasks():
-    return render_template("tasks.html")
+    """
+        Function to display list of tasks for the user
+    """
+
+    if not session:
+        return redirect("/login")
+    # Adds a list of tasks to the database and fileserver
+    if request.method == "POST":
+        if "taskList" in request.files:
+            # Request tasks list
+            tasklist = request.files["taskList"]
+
+            # Ensure that the filename is valid and the file exists
+            if tasklist.filename == "":
+                return apology("No filename", 400)
+            
+            # Check that tasklist is a json file, save json file
+            if allowed_tasklist(tasklist.filename):
+                task_filename = secure_filename(tasklist.filename)
+                tasklist.save(os.path.join(app.config["TASK_UPLOADS"], task_filename))
+
+            # Parse JSON
+            with open(os.path.join(app.config["TASK_UPLOADS"], task_filename)) as f:
+                data = json.load(f)
+            
+            map_name = data["map_name"]
+            tasklist_name = data["tasklist_name"]
+            cur = conn.cursor()
+
+            # Check that map file names are accurate
+            cur.execute("SELECT * FROM maps WHERE map_name=? AND user_id=?", (map_name, session["user_id"]))
+            rows_map = cur.fetchall()
+            if len(rows_map) == 0:
+                return apology("Map for tasklist does not exist", 400)
+
+            if data["map_file"] != rows_map[0][3] or data["yaml_file"] != rows_map[0][4]:
+                return apology("Map image and yaml files do not match", 400)
+            
+            # Check if tasklist already exists in database for user
+            cur.execute("SELECT * FROM tasklists WHERE tasklist_name=? AND user_id=?", (tasklist_name, session["user_id"]))
+            rows_task = cur.fetchall()
+            if len(rows_task) > 0:
+                return apology("Tasklist already exists", 400)
+
+            # Upload tasklist details to database
+            cur.execute("INSERT INTO tasklists (tasklist_name, tasklist_file, user_id, map_id, map_name, waypoint_count) VALUES (?, ?, ?, ?, ?, ?)", (tasklist_name, task_filename, session["user_id"], rows_map[0][0],  rows_map[0][2], len(data["tasks"])))
+            conn.commit()
+        else:
+                return apology("Please upload tasklist", 400)
+
+        return redirect(request.url)
+
+    cur = conn.cursor()
+    tasklists = cur.execute("SELECT * FROM tasklists WHERE user_id=?", (session["user_id"],))
+
+    return render_template("tasks.html", tasklists=tasklists)
+
+@app.route("/delete_tasklist", methods=["POST"])
+def delete_tasklist():
+    """
+        Function to delete tasklist from database
+    """
+
+    if not session:
+        return redirect("/login")
+
+    # Get tasklist data from database
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM tasklists WHERE id=(?)", (request.form.get("tasklist_id")))
+    row = cur.fetchone()
+    
+    # Delete tasklist files
+    tasklist_path = os.path.join(app.config["TASK_UPLOADS"], row[2])
+    if os.path.isfile(tasklist_path):
+        os.remove(tasklist_path)
+
+    # Delete map from database
+    cur.execute("DELETE FROM tasklists WHERE id=(?)", (request.form.get("tasklist_id")))
+    conn.commit()
+    
+    return redirect("tasks")
 
 @app.route("/logout")
 def logout():
+    """
+        Logs the user out
+    """
+
     session.clear()
     return redirect("login")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Register user"""
+    """
+        Register new user
+    """
 
     session.clear()
     if request.method == "POST":
@@ -342,7 +521,9 @@ def register():
 
 @app.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
-    """Log user in"""
+    """
+        Allows user to change password
+    """
 
     # Forget any user_id
     session.clear()
@@ -369,7 +550,9 @@ def forgot_password():
 
 @app.route("/change_password", methods=["GET", "POST"])
 def change_password():
-    """Allow users to change password"""
+    """
+        Allow users to change password
+    """
     
     # User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":

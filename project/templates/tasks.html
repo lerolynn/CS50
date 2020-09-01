@@ -24,103 +24,74 @@
                 <span aria-hidden="true">&times;</span>
               </button>
             </div>
-              <div class="modal-body">
-                <form action="/maps" method="POST" enctype="multipart/form-data">
 
-                  <div class="form-group">
-                    <label style="margin-left: 20px;" class="float-left">Tasks List</label>
-                    <div class="custom-file">
-                      <input type="file" class="custom-file-input" name="yamlFile" id="yamlFile">
-                      <label class="custom-file-label" for="yamlFile">Select Tasks List</label>
-                    </div>
+            <!-- Form to add list of tasks -->
+            <form action="/tasks" method="POST" enctype="multipart/form-data">
+              <div class="modal-body">
+                <div class="form-group">
+                  <label style="margin-left: 20px;" class="float-left">Task List</label>
+                  <div class="custom-file">
+                    <input type="file" class="custom-file-input" name="taskList" id="taskList">
+                    <label class="custom-file-label" for="taskList">Select Task List</label>
                   </div>
+                </div>
               </div>
               <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Upload Tasks List</button></button>
+                <button type="submit" class="btn btn-primary">Upload Task List</button></button>
               </div>
+            </form>
           </div>
         </div>
       </div>
   </div>
 
-  <!-- Display Robots -->
+  <!-- Display Tasklists -->
   <div class="col-md-auto">
     <table class="table table-hover">
       <thead>
         <tr>
           <th scope="col">ID</th>
-          <th scope="col">Robot</th>
-          <th scope="col">Type</th>
-          <th scope="col">IP Address</th>
+          <th scope="col">Tasklist Name</th>
+          <th scope="col">Taskist Filename</th>
+          <th scope="col">Map Name</th>
+          <th scope="col">Waypoints</th>
           <th scope="col"></th>
         </tr>
       </thead>
       <tbody>
-       {% for robot in robots %}
+       {% for tasklist in tasklists %}
           <tr>
-              <td>{{ robot.id }}</td>
-              <td>{{ robot.robot_name }}</td>
-              <td>{{ robot.robot_type }}</td>
-              <td>{{ robot.ip_address }}</td>
+              <td>{{ tasklist.id }}</td>
+              <td>{{ tasklist.tasklist_name }}</td>
+              <td>{{ tasklist.tasklist_file }}</td>
+              <td>{{ tasklist.map_name }}</td>
+              <td>{{ tasklist.waypoint_count }}</td>
               <td>
                 <div class="dropdown">
                   <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     Select
                   </button>
                   <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                    <a class="dropdown-item" data-toggle="modal" data-target="#updateRobotDetails" href="#">Update</a>
-                    <a class="dropdown-item" data-toggle="modal" data-target="#deleteRobot" href="#">Delete</a>
+                    <a class="dropdown-item" data-toggle="modal" data-target="#deleteTasklist" href="#">Delete</a>
                   </div>
                 </div>
               </td>
-              <!-- Modal for Update-->
-              <div class="modal fade bd-example-modal-lg" id="updateRobotDetails" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-                  <div class="modal-content">
-                    <div class="modal-header">
-                      <h5 class="modal-title" id="exampleModalLongTitle">Update Robot - {{ robot.robot_name }} - Details</h5>
-                      <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                      </button>
-                    </div>
-                    <div class="modal-body">
-                      <form>
-                        <div class="container-fluid">
-                          <div class="row justify-content-around">
-                            <div class="col-4">
-                              <input type="text" class="form-control" placeholder="Robot Name" value="{{ robot.robot_name }}">
-                            </div>
-                            <div class="col-4">
-                              <input type="text" class="form-control" placeholder="Robot Type" value="{{ robot.robot_type }}">
-                            </div>
-                            <div class="col-4">
-                              <input type="text" class="form-control" placeholder="IP Address" value="{{ robot.ip_address }}">
-                            </div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                      <button type="button" class="btn btn-primary">Save changes</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <!-- Modal for Delete-->
-              <div class="modal fade bd-example-modal-lg" id="deleteRobot" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+              <div class="modal fade bd-example-modal-lg" id="deleteTasklist" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
                   <div class="modal-content">
                     <div class="modal-header">
-                      <h5 class="modal-title" id="exampleModalLongTitle">Are you sure you want to delete Robot - {{ robot.robot_name }}?</h5>
+                      <h5 class="modal-title" id="exampleModalLongTitle">Are you sure you want to delete Tasklist {{  tasklist.tasklist_name  }}?</h5>
                       <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                       </button>
                     </div>
                     <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary">Yes</button>
-                      <button type="button" class="btn btn-primary" data-dismiss="modal">No, Don't Delete Robot {{ robot.robot_name }}</button></button>
+                      <form action="/delete_tasklist" method="POST">
+                        <button type="submit" class="btn btn-secondary" name="tasklist_id" value="{{  tasklist.id  }}">Yes</button>
+                        <button type="button" class="btn btn-primary" data-dismiss="modal">No, Don't Delete Tasklist {{  tasklist.tasklist_name  }}.</button></button>
+                      </form> 
                     </div>
                   </div>
                 </div>
