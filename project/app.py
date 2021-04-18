@@ -8,6 +8,8 @@ from sqlite3 import Error
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_session import Session
 from flask_login import LoginManager
+from flask_restful import Resource, Api, abort, reqparse
+
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -18,8 +20,45 @@ from helpers import *
 # Configure application
 app = Flask(__name__)
 
+# Wrap app with API
+api = Api(app)
+
+video_put_args = reqparse.RequestParser()
+video_put_args.add_argument("name", type=str, help="Name of video", required=True)
+video_put_args.add_argument("views", type=str, help="view of video", required=True)
+video_put_args.add_argument("likes", type=str, help="lyke of video", required=True)
+
+videos = {}
+
+def abort_if_id_not_exist(video_id):
+    if video_id not in videos:
+        abort(404, message="Video id is not valid")
+
+class Video(Resource):
+    def get(self, video_id):
+        abort_if_id_not_exist(video_id)
+
+        # Return data type must be serializable - python dictonary/json type
+        return videos[video_id]
+
+    # Create something
+    def put(self, video_id):
+        args = video_put_args.parse_args()
+        videos[video_id] = args
+        return videos[video_id], 201
+
+    def delete(self, video_id):
+        if video_id in videos:
+            del videos[video_id]
+            return '', 204
+        return '', 404
+
+
+api.add_resource(Video, "/video/<int:video_id>")
+
 # Ensure templates are auto-reloaded
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["DEBUG"] = True
 
 # Get absolute path of uploads folder
 dirname = os.path.dirname(__file__)
@@ -33,6 +72,7 @@ app.config["TASK_UPLOADS"] = os.path.join(dirname, "static/uploads/maps")
 # Path of static folder 
 app.config["STATIC_PATH"] = "static/uploads"
 app.config["STATIC_USR_PATH"] = "static/uploads"
+
 # Ensure responses aren't cached
 @app.after_request
 def after_request(response):
@@ -107,8 +147,9 @@ def run_tasks():
     map_name = rows[0][2].rsplit(".", 1)[0]
 
     print("Tasklist " + tasklist + " running on map " + map_name + " with robots ", end="")
-    print(robotlist)
+    print(os.path.dirname(__file__))
     return redirect(url_for('.index', run=True))
+
 
 @app.route("/select_map", methods=["POST"])
 def select_map():
@@ -631,13 +672,17 @@ def change_password():
                 session.clear()
             return render_template("change_password.html")
 
+@app.errorhandler(404)
 def errorhandler(e):
     """Handle error"""
     if not isinstance(e, HTTPException):
         e = InternalServerError()
-    return apology(e.name, e.code)
+    return "<h1>404</h1><p>The resource could not be found.</p>", 404
 
 
 # Listen for errors
 for code in default_exceptions:
     app.errorhandler(code)(errorhandler)
+
+if __name__ == "__main__":
+    app.run(debug=True)
